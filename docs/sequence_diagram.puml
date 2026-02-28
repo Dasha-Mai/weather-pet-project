@@ -1,0 +1,24 @@
+@startuml
+actor Client
+participant "User Service" as US
+participant "Weather Service" as WS
+participant "OpenWeatherMap API" as OWM
+database "PostgreSQL" as DB
+database "Redis" as Cache
+
+Client -> US: GET /users/{id}/weather
+US -> DB: SELECT city FROM users WHERE id = {id}
+DB --> US: city name
+US -> WS: GET /weather?city={city}
+WS -> Cache: GET {city}
+alt cache miss
+  Cache --> WS: null
+  WS -> OWM: GET weather?q={city}&appid=...
+  OWM --> WS: weather data
+  WS -> Cache: SET {city} weather data (TTL=10 min)
+else cache hit
+  Cache --> WS: weather data
+end
+WS --> US: weather data
+US --> Client: response (weather + user info)
+@enduml
